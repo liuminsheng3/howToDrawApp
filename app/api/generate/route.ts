@@ -3,6 +3,7 @@ import { generateTutorialSteps } from '@/lib/openrouter'
 import { generateImage } from '@/lib/replicate'
 import { createServerSupabase } from '@/lib/supabase'
 import { downloadAndStoreImage } from '@/lib/imageStorage'
+import { categorizeTopic } from '@/lib/categorize'
 
 // Use nodejs runtime for background tasks
 export const runtime = 'nodejs'
@@ -28,6 +29,10 @@ export async function POST(request: NextRequest) {
     console.log('[Generate API] Tutorial data generated in', Date.now() - startTime, 'ms')
     console.log('[Generate API] Steps count:', tutorialData.steps?.length)
     
+    // Categorize the topic
+    const categoryInfo = categorizeTopic(topic)
+    console.log('[Generate API] Category:', categoryInfo)
+    
     // Step 2: Create tutorial record in database
     console.log('[Generate API] Creating tutorial record in database...')
     const supabase = createServerSupabase()
@@ -47,7 +52,9 @@ export async function POST(request: NextRequest) {
           status: 'generating',
           total_steps: tutorialData.steps.length,
           current_step: 'generate_prompt',
-          completed_steps: 1
+          completed_steps: 1,
+          category: categoryInfo.category,
+          subcategory: categoryInfo.subcategory
         })
         .select()
         .single()
@@ -68,7 +75,9 @@ export async function POST(request: NextRequest) {
           title: tutorialData.title,
           intro: tutorialData.intro,
           outro: tutorialData.outro,
-          status: 'generating'
+          status: 'generating',
+          category: categoryInfo.category,
+          subcategory: categoryInfo.subcategory
         })
         .select()
         .single()
@@ -119,6 +128,7 @@ export async function POST(request: NextRequest) {
       id: tutorial.id, 
       status: 'generating',
       totalSteps: tutorialData.steps.length,
+      categoryPath: categoryInfo.path,
       message: 'Tutorial is being generated. Please check back in a few moments.'
     })
   } catch (error) {
