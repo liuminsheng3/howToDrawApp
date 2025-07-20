@@ -4,6 +4,7 @@ import { generateImage } from '@/lib/replicate'
 import { createServerSupabase } from '@/lib/supabase'
 
 export const runtime = 'edge'
+export const maxDuration = 60 // Increase timeout to 60 seconds
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,44 +32,78 @@ export async function POST(request: NextRequest) {
 
     if (tutorialError) throw tutorialError
 
-    // Step 3: Generate images for each step and insert to database
-    const stepsWithImages = []
-    for (const step of tutorialData.steps) {
-      try {
-        const imageUrl = await generateImage(step.image_prompt)
-        
-        const { data: stepData, error: stepError } = await supabase
-          .from('tutorial_steps')
-          .insert({
-            tutorial_id: tutorial.id,
-            step_number: step.step_number,
-            text: step.text,
-            image_prompt: step.image_prompt,
-            image_url: imageUrl
-          })
-          .select()
-          .single()
+    // Return immediately with tutorial ID
+    // Image generation will continue in background
+    generateImagesInBackground(tutorial.id, tutorialData.steps, supabase)
 
-        if (stepError) throw stepError
-        stepsWithImages.push(stepData)
-      } catch (error) {
-        console.error(`Error generating image for step ${step.step_number}:`, error)
-        // Continue with other steps even if one fails
-      }
-    }
-
-    // Step 4: Update tutorial status to ready
-    await supabase
-      .from('tutorials')
-      .update({ status: 'ready' })
-      .eq('id', tutorial.id)
-
-    return NextResponse.json({ id: tutorial.id, status: 'ready' })
+    return NextResponse.json({ 
+      id: tutorial.id, 
+      status: 'generating',
+      message: 'Tutorial is being generated. Please check back in a few moments.'
+    })
   } catch (error) {
     console.error('Error in generate API:', error)
     return NextResponse.json(
       { error: 'Failed to generate tutorial' },
       { status: 500 }
     )
+  }
+}
+
+// Background function to generate images
+async function generateImagesInBackground(
+  tutorialId: string, 
+  steps: any[], 
+  supabase: any
+) {
+  try {
+    // Generate images for each step in parallel (max 3 at a time)
+    const batchSize = 3
+    for (let i = 0; i < steps.length; i += batchSize) {
+      const batch = steps.slice(i, i + batchSize)
+      
+      await Promise.all(
+        batch.map(async (step) => {
+          try {
+            const imageUrl = await generateImage(step.image_prompt)
+            
+            await supabase
+              .from('tutorial_steps')
+              .insert({
+                tutorial_id: tutorialId,
+                step_number: step.step_number,
+                text: step.text,
+                image_prompt: step.image_prompt,
+                image_url: imageUrl
+              })
+          } catch (error) {
+            console.error(`Error generating image for step ${step.step_number}:`, error)
+            // Insert step without image if generation fails
+            await supabase
+              .from('tutorial_steps')
+              .insert({
+                tutorial_id: tutorialId,
+                step_number: step.step_number,
+                text: step.text,
+                image_prompt: step.image_prompt,
+                image_url: null
+              })
+          }
+        })
+      )
+    }
+
+    // Update tutorial status to ready
+    await supabase
+      .from('tutorials')
+      .update({ status: 'ready' })
+      .eq('id', tutorialId)
+  } catch (error) {
+    console.error('Error in background image generation:', error)
+    // Update tutorial status to error
+    await supabase
+      .from('tutorials')
+      .update({ status: 'error' })
+      .eq('id', tutorialId)
   }
 }

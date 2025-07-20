@@ -26,8 +26,11 @@ export default function TutorialDetailPage() {
     () => fetcher(id),
     {
       refreshInterval: (data) => {
+        // Refresh every 2 seconds if status is 'generating'
+        if (data?.status === 'generating') return 2000
         // Refresh every 3 seconds if no steps yet
-        return !data?.tutorial_steps || data.tutorial_steps.length === 0 ? 3000 : 0
+        if (!data?.tutorial_steps || data.tutorial_steps.length === 0) return 3000
+        return 0
       }
     }
   )
@@ -83,10 +86,20 @@ export default function TutorialDetailPage() {
         <p className="text-gray-700 mb-8">{tutorial.intro}</p>
       )}
 
-      {sortedSteps.length === 0 ? (
+      {tutorial.status === 'generating' ? (
         <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
           <p className="text-gray-600">Generating tutorial steps...</p>
-          <p className="text-sm text-gray-500 mt-2">This may take a minute</p>
+          <p className="text-sm text-gray-500 mt-2">This may take a minute while we create custom images for each step</p>
+          {sortedSteps.length > 0 && (
+            <p className="text-sm text-gray-500 mt-2">
+              Progress: {sortedSteps.length} of {tutorial.total_steps || '?'} steps completed
+            </p>
+          )}
+        </div>
+      ) : sortedSteps.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-600">No steps available</p>
         </div>
       ) : (
         <>
