@@ -137,14 +137,18 @@ async function generateImagesInBackground(
       }
       
       try {
+        console.log(`[Background] Generating image for step ${step.step_number}...`)
         const tempImageUrl = await generateImage(step.image_prompt)
+        console.log(`[Background] Image generated for step ${step.step_number}:`, tempImageUrl)
         
         // Download and store the image
+        console.log(`[Background] Storing image for step ${step.step_number}...`)
         const storedImageUrl = await downloadAndStoreImage(
           tempImageUrl, 
           tutorialId, 
           step.step_number
         )
+        console.log(`[Background] Image stored for step ${step.step_number}:`, storedImageUrl)
         
         await supabase
           .from('tutorial_steps')
