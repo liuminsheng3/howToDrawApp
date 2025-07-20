@@ -17,7 +17,11 @@ Generate a step-by-step tutorial in JSON format with exactly this structure:
 }
 
 Rules:
-- Generate 5-8 steps
+- Generate between 3-15 steps based on complexity:
+  - Simple objects (ball, star): 3-5 steps
+  - Medium complexity (animals, simple buildings): 6-10 steps
+  - Complex subjects (detailed scenes, characters): 10-15 steps
+- NEVER exceed 15 steps
 - Each step should be simple and build on the previous
 - Start with basic shapes, end with details
 - Keep text concise and clear

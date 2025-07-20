@@ -25,7 +25,10 @@ export async function POST(request: NextRequest) {
         title: tutorialData.title,
         intro: tutorialData.intro,
         outro: tutorialData.outro,
-        status: 'generating'
+        status: 'generating',
+        total_steps: tutorialData.steps.length,
+        current_step: 'generate_prompt',
+        completed_steps: 1
       })
       .select()
       .single()
@@ -57,46 +60,66 @@ async function generateImagesInBackground(
   supabase: any
 ) {
   try {
-    // Generate images for each step in parallel (max 3 at a time)
-    const batchSize = 3
-    for (let i = 0; i < steps.length; i += batchSize) {
-      const batch = steps.slice(i, i + batchSize)
+    let completedCount = 1 // Start at 1 because prompt generation is complete
+    
+    // Generate images for each step sequentially to track progress
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i]
       
-      await Promise.all(
-        batch.map(async (step) => {
-          try {
-            const imageUrl = await generateImage(step.image_prompt)
-            
-            await supabase
-              .from('tutorial_steps')
-              .insert({
-                tutorial_id: tutorialId,
-                step_number: step.step_number,
-                text: step.text,
-                image_prompt: step.image_prompt,
-                image_url: imageUrl
-              })
-          } catch (error) {
-            console.error(`Error generating image for step ${step.step_number}:`, error)
-            // Insert step without image if generation fails
-            await supabase
-              .from('tutorial_steps')
-              .insert({
-                tutorial_id: tutorialId,
-                step_number: step.step_number,
-                text: step.text,
-                image_prompt: step.image_prompt,
-                image_url: null
-              })
-          }
+      // Update current step
+      await supabase
+        .from('tutorials')
+        .update({ 
+          current_step: `generate_image_${step.step_number}`,
+          completed_steps: completedCount
         })
-      )
+        .eq('id', tutorialId)
+      
+      try {
+        const imageUrl = await generateImage(step.image_prompt)
+        
+        await supabase
+          .from('tutorial_steps')
+          .insert({
+            tutorial_id: tutorialId,
+            step_number: step.step_number,
+            text: step.text,
+            image_prompt: step.image_prompt,
+            image_url: imageUrl
+          })
+        
+        completedCount++
+        
+        // Update completed steps count
+        await supabase
+          .from('tutorials')
+          .update({ completed_steps: completedCount })
+          .eq('id', tutorialId)
+          
+      } catch (error) {
+        console.error(`Error generating image for step ${step.step_number}:`, error)
+        // Insert step without image if generation fails
+        await supabase
+          .from('tutorial_steps')
+          .insert({
+            tutorial_id: tutorialId,
+            step_number: step.step_number,
+            text: step.text,
+            image_prompt: step.image_prompt,
+            image_url: null
+          })
+        completedCount++
+      }
     }
 
-    // Update tutorial status to ready
+    // Update tutorial status to ready and final step
     await supabase
       .from('tutorials')
-      .update({ status: 'ready' })
+      .update({ 
+        status: 'ready',
+        current_step: 'finalize',
+        completed_steps: completedCount + 1
+      })
       .eq('id', tutorialId)
   } catch (error) {
     console.error('Error in background image generation:', error)

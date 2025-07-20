@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import useSWR from 'swr'
 import Link from 'next/link'
 import StepViewer from '@/components/StepViewer'
+import GenerationProgress from '@/components/GenerationProgress'
 
 const fetcher = async (id: string) => {
   const { data, error } = await supabase
@@ -87,15 +88,16 @@ export default function TutorialDetailPage() {
       )}
 
       {tutorial.status === 'generating' ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
-          <p className="text-gray-600">Generating tutorial steps...</p>
-          <p className="text-sm text-gray-500 mt-2">This may take a minute while we create custom images for each step</p>
-          {sortedSteps.length > 0 && (
-            <p className="text-sm text-gray-500 mt-2">
-              Progress: {sortedSteps.length} of {tutorial.total_steps || '?'} steps completed
-            </p>
-          )}
+        <div className="space-y-6">
+          <GenerationProgress 
+            totalSteps={tutorial.total_steps || 5}
+            completedSteps={tutorial.completed_steps || 0}
+            currentStep={tutorial.current_step || 'generate_prompt'}
+          />
+          <div className="text-center py-8">
+            <p className="text-gray-600">Your custom drawing tutorial is being generated...</p>
+            <p className="text-sm text-gray-500 mt-2">This may take a few minutes while we create custom images for each step</p>
+          </div>
         </div>
       ) : sortedSteps.length === 0 ? (
         <div className="text-center py-12">
