@@ -1,12 +1,13 @@
 # Vercel Deployment Guide
 
-## Environment Variables
+## Environment Variables (CRITICAL!)
 
-Make sure you have set ALL these environment variables in Vercel:
+You MUST set these environment variables in Vercel Dashboard:
 
-1. Go to your Vercel project settings
-2. Navigate to "Environment Variables"
-3. Add these variables:
+1. Go to your Vercel project dashboard
+2. Click on "Settings" tab
+3. Click on "Environment Variables" in the left sidebar
+4. Add each of these variables ONE BY ONE:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
