@@ -90,8 +90,8 @@ export default function TutorialDetailPage() {
       {tutorial.status === 'generating' ? (
         <div className="space-y-6">
           <GenerationProgress 
-            totalSteps={tutorial.total_steps || 5}
-            completedSteps={tutorial.completed_steps || 0}
+            totalSteps={tutorial.total_steps || sortedSteps.length || 5}
+            completedSteps={tutorial.completed_steps || sortedSteps.length || 0}
             currentStep={tutorial.current_step || 'generate_prompt'}
           />
           <div className="text-center py-8">
