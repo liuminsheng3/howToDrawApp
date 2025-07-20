@@ -6,6 +6,7 @@ import { downloadAndStoreImage } from '@/lib/imageStorage'
 
 // Use nodejs runtime for background tasks
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Increase timeout to 60 seconds
 
 export async function POST(request: NextRequest) {

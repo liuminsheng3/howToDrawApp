@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import Replicate from 'replicate'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   console.log('[Test Replicate] Starting test...')
   
+  // Check if we have the token
+  if (!process.env.REPLICATE_API_TOKEN) {
+    return NextResponse.json({
+      success: false,
+      error: 'REPLICATE_API_TOKEN not configured'
+    }, { status: 500 })
+  }
+  
   const replicate = new Replicate({
-    auth: process.env.REPLICATE_API_TOKEN!,
+    auth: process.env.REPLICATE_API_TOKEN,
   })
   
   try {
