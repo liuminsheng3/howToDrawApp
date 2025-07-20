@@ -84,13 +84,41 @@ export async function POST(request: NextRequest) {
     
     console.log('[Generate API] Tutorial created with ID:', tutorial.id)
 
-    // Return immediately with tutorial ID
-    // Image generation will continue in background
-    generateImagesInBackground(tutorial.id, tutorialData.steps, supabase)
+    // Save total steps to database if possible
+    try {
+      await supabase
+        .from('tutorials')
+        .update({ total_steps: tutorialData.steps.length })
+        .eq('id', tutorial.id)
+    } catch (e) {
+      console.log('[Generate API] Could not update total_steps')
+    }
+
+    // Trigger separate API call for image generation
+    const baseUrl = request.headers.get('host') || 'localhost:3000'
+    const protocol = request.headers.get('x-forwarded-proto') || 'http'
+    const imageGenUrl = `${protocol}://${baseUrl}/api/generate-images`
+    
+    console.log('[Generate API] Triggering image generation at:', imageGenUrl)
+    
+    // Fire and forget - don't wait for response
+    fetch(imageGenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tutorialId: tutorial.id,
+        steps: tutorialData.steps
+      })
+    }).then(res => {
+      console.log('[Generate API] Image generation triggered, status:', res.status)
+    }).catch(err => {
+      console.error('[Generate API] Failed to trigger image generation:', err)
+    })
 
     return NextResponse.json({ 
       id: tutorial.id, 
       status: 'generating',
+      totalSteps: tutorialData.steps.length,
       message: 'Tutorial is being generated. Please check back in a few moments.'
     })
   } catch (error) {
@@ -106,114 +134,5 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     )
-  }
-}
-
-// Background function to generate images
-async function generateImagesInBackground(
-  tutorialId: string, 
-  steps: any[], 
-  supabase: any
-) {
-  console.log('[Background] Starting image generation for tutorial:', tutorialId)
-  console.log('[Background] Total steps to generate:', steps.length)
-  
-  try {
-    let completedCount = 1 // Start at 1 because prompt generation is complete
-    
-    // Generate images for each step sequentially to track progress
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i]
-      
-      // Update current step (skip if columns don't exist)
-      try {
-        await supabase
-          .from('tutorials')
-          .update({ 
-            current_step: `generate_image_${step.step_number}`,
-            completed_steps: completedCount
-          })
-          .eq('id', tutorialId)
-      } catch (e) {
-        console.log('[Background] Progress tracking not available')
-      }
-      
-      try {
-        console.log(`[Background] Generating image for step ${step.step_number}...`)
-        const tempImageUrl = await generateImage(step.image_prompt)
-        console.log(`[Background] Image generated for step ${step.step_number}:`, tempImageUrl)
-        
-        // Download and store the image
-        console.log(`[Background] Storing image for step ${step.step_number}...`)
-        const storedImageUrl = await downloadAndStoreImage(
-          tempImageUrl, 
-          tutorialId, 
-          step.step_number
-        )
-        console.log(`[Background] Image stored for step ${step.step_number}:`, storedImageUrl)
-        
-        await supabase
-          .from('tutorial_steps')
-          .insert({
-            tutorial_id: tutorialId,
-            step_number: step.step_number,
-            text: step.text,
-            image_prompt: step.image_prompt,
-            image_url: tempImageUrl,
-            stored_image_url: storedImageUrl || tempImageUrl
-          })
-        
-        completedCount++
-        
-        // Update completed steps count (skip if column doesn't exist)
-        try {
-          await supabase
-            .from('tutorials')
-            .update({ completed_steps: completedCount })
-            .eq('id', tutorialId)
-        } catch (e) {
-          // Progress tracking not available
-        }
-          
-      } catch (error) {
-        console.error(`Error generating image for step ${step.step_number}:`, error)
-        // Insert step without image if generation fails
-        await supabase
-          .from('tutorial_steps')
-          .insert({
-            tutorial_id: tutorialId,
-            step_number: step.step_number,
-            text: step.text,
-            image_prompt: step.image_prompt,
-            image_url: null
-          })
-        completedCount++
-      }
-    }
-
-    // Update tutorial status to ready and final step
-    try {
-      await supabase
-        .from('tutorials')
-        .update({ 
-          status: 'ready',
-          current_step: 'finalize',
-          completed_steps: completedCount + 1
-        })
-        .eq('id', tutorialId)
-    } catch (e) {
-      // If progress columns don't exist, just update status
-      await supabase
-        .from('tutorials')
-        .update({ status: 'ready' })
-        .eq('id', tutorialId)
-    }
-  } catch (error) {
-    console.error('Error in background image generation:', error)
-    // Update tutorial status to error
-    await supabase
-      .from('tutorials')
-      .update({ status: 'error' })
-      .eq('id', tutorialId)
   }
 }
