@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateTutorialSteps } from '@/lib/openrouter'
 import { generateImage } from '@/lib/replicate'
 import { createServerSupabase } from '@/lib/supabase'
+import { downloadAndStoreImage } from '@/lib/imageStorage'
 
 export const runtime = 'edge'
 export const maxDuration = 60 // Increase timeout to 60 seconds
@@ -101,7 +102,14 @@ async function generateImagesInBackground(
         .eq('id', tutorialId)
       
       try {
-        const imageUrl = await generateImage(step.image_prompt)
+        const tempImageUrl = await generateImage(step.image_prompt)
+        
+        // Download and store the image
+        const storedImageUrl = await downloadAndStoreImage(
+          tempImageUrl, 
+          tutorialId, 
+          step.step_number
+        )
         
         await supabase
           .from('tutorial_steps')
@@ -110,7 +118,8 @@ async function generateImagesInBackground(
             step_number: step.step_number,
             text: step.text,
             image_prompt: step.image_prompt,
-            image_url: imageUrl
+            image_url: tempImageUrl,
+            stored_image_url: storedImageUrl || tempImageUrl
           })
         
         completedCount++

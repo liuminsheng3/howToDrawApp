@@ -8,7 +8,7 @@ import TutorialCard from '@/components/TutorialCard'
 const fetcher = async () => {
   const { data, error } = await supabase
     .from('tutorials')
-    .select('*')
+    .select('*, tutorial_steps(*)')
     .order('created_at', { ascending: false })
   
   if (error) throw error
@@ -16,7 +16,7 @@ const fetcher = async () => {
 }
 
 export default function TutorialsPage() {
-  const { data: tutorials, error, isLoading } = useSWR('tutorials', fetcher, {
+  const { data: tutorials, error, isLoading, mutate } = useSWR('tutorials', fetcher, {
     refreshInterval: 5000 // Refresh every 5 seconds
   })
 
@@ -53,7 +53,11 @@ export default function TutorialsPage() {
       {tutorials && tutorials.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {tutorials.map((tutorial) => (
-            <TutorialCard key={tutorial.id} tutorial={tutorial} />
+            <TutorialCard 
+              key={tutorial.id} 
+              tutorial={tutorial} 
+              onDelete={() => mutate()}
+            />
           ))}
         </div>
       )}

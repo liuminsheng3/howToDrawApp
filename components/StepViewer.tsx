@@ -4,6 +4,7 @@ type Step = {
   step_number: number
   text: string
   image_url: string
+  stored_image_url?: string
 }
 
 interface StepViewerProps {
@@ -19,10 +20,10 @@ export default function StepViewer({ steps }: StepViewerProps) {
             Step {step.step_number}
           </h3>
           <p className="text-gray-700 mb-4">{step.text}</p>
-          {step.image_url && (
+          {(step.stored_image_url || step.image_url) && (
             <div className="relative w-full max-w-md my-2 aspect-square">
               <Image
-                src={step.image_url}
+                src={step.stored_image_url || step.image_url}
                 alt={`Step ${step.step_number}`}
                 fill
                 className="object-contain rounded-lg border"
