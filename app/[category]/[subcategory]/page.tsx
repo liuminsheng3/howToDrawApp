@@ -6,11 +6,6 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import TutorialCard from '@/components/TutorialCard'
 
-interface PageParams {
-  category: string
-  subcategory: string
-}
-
 const fetcher = async (category: string, subcategory: string) => {
   const { data, error } = await supabase
     .from('tutorials')
@@ -25,7 +20,7 @@ const fetcher = async (category: string, subcategory: string) => {
 }
 
 export default function SubcategoryPage() {
-  const params = useParams() as PageParams
+  const params = useParams<{ category: string; subcategory: string }>()
   const { category, subcategory } = params
 
   const { data: tutorials, error, isLoading, mutate } = useSWR(

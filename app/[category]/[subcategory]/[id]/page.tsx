@@ -6,12 +6,6 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import StepViewer from '@/components/StepViewer'
 
-interface PageParams {
-  category: string
-  subcategory: string
-  id: string
-}
-
 const fetcher = async (id: string) => {
   const { data, error } = await supabase
     .from('tutorials')
@@ -24,7 +18,7 @@ const fetcher = async (id: string) => {
 }
 
 export default function TutorialViewPage() {
-  const params = useParams() as PageParams
+  const params = useParams<{ category: string; subcategory: string; id: string }>()
   const { category, subcategory, id } = params
 
   const { data: tutorial, error, isLoading } = useSWR(

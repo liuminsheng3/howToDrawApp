@@ -6,10 +6,6 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import TutorialCard from '@/components/TutorialCard'
 
-interface PageParams {
-  category: string
-}
-
 const subcategoriesByCategory: Record<string, { name: string; path: string }[]> = {
   animal: [
     { name: 'Cats', path: 'cats' },
@@ -46,7 +42,7 @@ const fetcher = async (category: string) => {
 }
 
 export default function CategoryPage() {
-  const params = useParams() as PageParams
+  const params = useParams<{ category: string }>()
   const { category } = params
 
   const { data: tutorials, error, isLoading, mutate } = useSWR(
