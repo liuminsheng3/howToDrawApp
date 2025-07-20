@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     console.log('[Generate Images API] Steps to generate:', steps.length)
     
     const supabase = createServerSupabase()
-    let completedCount = 1 // Start at 1 because prompt generation is complete
+    let completedImageSteps = 0 // Count of completed image generation steps
     
     // Generate images for each step sequentially
     for (let i = 0; i < steps.length; i++) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
           .from('tutorials')
           .update({ 
             current_step: `generate_image_${step.step_number}`,
-            completed_steps: completedCount,
+            completed_steps: completedImageSteps + 1, // +1 for initial AI generation
             total_steps: steps.length
           })
           .eq('id', tutorialId)
@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
             stored_image_url: storedImageUrl || tempImageUrl
           })
         
-        completedCount++
-        console.log(`[Generate Images API] Step ${step.step_number} completed`)
+        completedImageSteps++
+        console.log(`[Generate Images API] Step ${step.step_number} completed, total completed: ${completedImageSteps}`)
         
       } catch (error) {
         console.error(`[Generate Images API] Error on step ${step.step_number}:`, error)
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
             image_url: null,
             stored_image_url: null
           })
-        completedCount++
+        completedImageSteps++
       }
     }
     
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       .update({ 
         status: 'ready',
         current_step: 'finalize',
-        completed_steps: completedCount + 1,
+        completed_steps: completedImageSteps + 2, // +1 for AI generation, +1 for finalize
         total_steps: steps.length
       })
       .eq('id', tutorialId)

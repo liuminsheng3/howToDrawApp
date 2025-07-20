@@ -83,6 +83,9 @@ export default function GenerationProgress({
           <span className="text-gray-600">Overall Progress</span>
           <span className="font-medium">{Math.round((completedSteps / (totalSteps + 2)) * 100)}%</span>
         </div>
+        <div className="text-xs text-gray-500 mt-1">
+          ({completedSteps} of {totalSteps + 2} tasks completed)
+        </div>
         <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
           <div 
             className="bg-blue-500 h-2 rounded-full transition-all duration-300"
