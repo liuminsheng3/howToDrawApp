@@ -7,16 +7,26 @@ export const runtime = 'edge'
 export const maxDuration = 60 // Increase timeout to 60 seconds
 
 export async function POST(request: NextRequest) {
+  console.log('[Generate API] Starting generation process')
+  
   try {
     const { topic } = await request.json()
+    console.log('[Generate API] Received topic:', topic)
+    
     if (!topic) {
+      console.error('[Generate API] No topic provided')
       return NextResponse.json({ error: 'Topic is required' }, { status: 400 })
     }
 
     // Step 1: Generate tutorial structure with GPT-4o
+    console.log('[Generate API] Calling generateTutorialSteps...')
+    const startTime = Date.now()
     const tutorialData = await generateTutorialSteps(topic)
+    console.log('[Generate API] Tutorial data generated in', Date.now() - startTime, 'ms')
+    console.log('[Generate API] Steps count:', tutorialData.steps?.length)
     
     // Step 2: Create tutorial record in database
+    console.log('[Generate API] Creating tutorial record in database...')
     const supabase = createServerSupabase()
     const { data: tutorial, error: tutorialError } = await supabase
       .from('tutorials')
@@ -33,7 +43,12 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (tutorialError) throw tutorialError
+    if (tutorialError) {
+      console.error('[Generate API] Database error:', tutorialError)
+      throw tutorialError
+    }
+    
+    console.log('[Generate API] Tutorial created with ID:', tutorial.id)
 
     // Return immediately with tutorial ID
     // Image generation will continue in background
@@ -45,9 +60,16 @@ export async function POST(request: NextRequest) {
       message: 'Tutorial is being generated. Please check back in a few moments.'
     })
   } catch (error) {
-    console.error('Error in generate API:', error)
+    console.error('[Generate API] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error
+    })
     return NextResponse.json(
-      { error: 'Failed to generate tutorial' },
+      { 
+        error: 'Failed to generate tutorial',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
@@ -59,6 +81,9 @@ async function generateImagesInBackground(
   steps: any[], 
   supabase: any
 ) {
+  console.log('[Background] Starting image generation for tutorial:', tutorialId)
+  console.log('[Background] Total steps to generate:', steps.length)
+  
   try {
     let completedCount = 1 // Start at 1 because prompt generation is complete
     

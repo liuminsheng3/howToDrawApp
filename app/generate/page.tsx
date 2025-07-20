@@ -6,26 +6,49 @@ import { useRouter } from 'next/navigation'
 export default function GeneratePage() {
   const [topic, setTopic] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<string[]>([])
   const router = useRouter()
+  
+  const addDebugInfo = (info: string) => {
+    console.log(info)
+    setDebugInfo(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${info}`])
+  }
 
   const handleGenerate = async () => {
     if (!topic.trim()) return
+    
+    setError(null)
+    setDebugInfo([])
 
     startTransition(async () => {
       try {
+        addDebugInfo('Starting tutorial generation...')
+        addDebugInfo(`Topic: "${topic}"`)
+        
         const response = await fetch('/api/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ topic })
         })
-
-        if (!response.ok) throw new Error('Generation failed')
         
-        const { id } = await response.json()
-        router.push(`/tutorials/${id}`)
+        addDebugInfo(`Response status: ${response.status}`)
+
+        const data = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(data.details || data.error || 'Generation failed')
+        }
+        
+        addDebugInfo(`Tutorial ID: ${data.id}`)
+        addDebugInfo('Redirecting to tutorial page...')
+        
+        router.push(`/tutorials/${data.id}`)
       } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error'
         console.error('Error generating tutorial:', error)
-        alert('Failed to generate tutorial. Please try again.')
+        setError(errorMsg)
+        addDebugInfo(`Error: ${errorMsg}`)
       }
     })
   }
@@ -59,9 +82,31 @@ export default function GeneratePage() {
         </button>
 
         {isPending && (
-          <p className="text-gray-600 text-center">
-            This may take a minute while we create your custom tutorial...
-          </p>
+          <div className="space-y-2">
+            <p className="text-gray-600 text-center">
+              This may take a minute while we create your custom tutorial...
+            </p>
+            <p className="text-xs text-gray-500 text-center">
+              Check the browser console for detailed logs
+            </p>
+          </div>
+        )}
+        
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700 text-sm">{error}</p>
+          </div>
+        )}
+        
+        {debugInfo.length > 0 && (
+          <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <p className="text-xs font-semibold text-gray-700 mb-2">Debug Info:</p>
+            <div className="space-y-1">
+              {debugInfo.map((info, i) => (
+                <p key={i} className="text-xs text-gray-600 font-mono">{info}</p>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </main>
