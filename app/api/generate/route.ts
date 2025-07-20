@@ -4,7 +4,8 @@ import { generateImage } from '@/lib/replicate'
 import { createServerSupabase } from '@/lib/supabase'
 import { downloadAndStoreImage } from '@/lib/imageStorage'
 
-export const runtime = 'edge'
+// Use nodejs runtime for background tasks
+export const runtime = 'nodejs'
 export const maxDuration = 60 // Increase timeout to 60 seconds
 
 export async function POST(request: NextRequest) {
