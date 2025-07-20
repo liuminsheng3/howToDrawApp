@@ -29,29 +29,51 @@ export async function POST(request: NextRequest) {
     // Step 2: Create tutorial record in database
     console.log('[Generate API] Creating tutorial record in database...')
     const supabase = createServerSupabase()
-    // Try to insert with progress columns, fallback if they don't exist
-    let insertData: any = {
-      topic,
-      title: tutorialData.title,
-      intro: tutorialData.intro,
-      outro: tutorialData.outro,
-      status: 'generating'
-    }
+    // First try with all columns, then fallback to basic columns
+    let tutorial
+    let tutorialError
     
-    // Try to include progress tracking if columns exist
     try {
-      insertData.total_steps = tutorialData.steps.length
-      insertData.current_step = 'generate_prompt'
-      insertData.completed_steps = 1
+      // Try with progress tracking columns
+      const result = await supabase
+        .from('tutorials')
+        .insert({
+          topic,
+          title: tutorialData.title,
+          intro: tutorialData.intro,
+          outro: tutorialData.outro,
+          status: 'generating',
+          total_steps: tutorialData.steps.length,
+          current_step: 'generate_prompt',
+          completed_steps: 1
+        })
+        .select()
+        .single()
+      
+      tutorial = result.data
+      tutorialError = result.error
     } catch (e) {
-      console.log('[Generate API] Progress columns not available yet')
+      console.log('[Generate API] Trying without progress columns...')
     }
     
-    const { data: tutorial, error: tutorialError } = await supabase
-      .from('tutorials')
-      .insert(insertData)
-      .select()
-      .single()
+    // If failed, try without progress columns
+    if (!tutorial || tutorialError) {
+      console.log('[Generate API] Inserting without progress tracking...')
+      const result = await supabase
+        .from('tutorials')
+        .insert({
+          topic,
+          title: tutorialData.title,
+          intro: tutorialData.intro,
+          outro: tutorialData.outro,
+          status: 'generating'
+        })
+        .select()
+        .single()
+      
+      tutorial = result.data
+      tutorialError = result.error
+    }
 
     if (tutorialError) {
       console.error('[Generate API] Database error:', tutorialError)
