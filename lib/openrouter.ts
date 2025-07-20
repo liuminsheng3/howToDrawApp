@@ -26,7 +26,10 @@ Rules:
 - Each step should be simple and build on the previous
 - Start with basic shapes, end with details
 - Keep text concise and clear
-- Image prompts must specify "simple black and white line drawing" and "white background"`
+- Image prompts must specify "simple black and white line drawing" and "white background"
+- IMPORTANT: Keep all prompts family-friendly and educational
+- Add "educational tutorial" or "children's drawing guide" to image prompts
+- Avoid any terms that might trigger content filters`
 
   const requestBody = {
     model: 'openai/gpt-4o',
