@@ -11,7 +11,7 @@ export async function generateImage(prompt: string, previousImageUrl?: string): 
   console.log('[Replicate] Starting image generation with prompt:', optimizedPrompt.substring(0, 50) + '...')
   const startTime = Date.now()
   
-  // Try up to 3 times if NSFW error occurs
+  // Try up to 3 times if error occurs
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       // Add timeout wrapper
@@ -19,7 +19,7 @@ export async function generateImage(prompt: string, previousImageUrl?: string): 
         setTimeout(() => reject(new Error('Replicate timeout after 30 seconds')), 30000)
       })
       
-      // Modify prompt on retry to avoid NSFW detection
+      // Modify prompt on retry
       const attemptPrompt = attempt > 1 
         ? `Children's educational drawing tutorial: ${prompt.replace('Add', 'Gently add').replace('existing', 'current')}, simple black lines only, white background, family-friendly`
         : optimizedPrompt
@@ -27,65 +27,71 @@ export async function generateImage(prompt: string, previousImageUrl?: string): 
       let generatePromise
       
       if (previousImageUrl) {
-        // Use img2img for subsequent steps
-        console.log('[Replicate] Using img2img with previous image:', previousImageUrl.substring(0, 50) + '...')
+        // Use flux-kontext-max with previous image
+        console.log('[Replicate] Using flux-kontext-max with previous image:', previousImageUrl.substring(0, 50) + '...')
         generatePromise = replicate.run(
-          "stability-ai/stable-diffusion-img2img:15a3689ee13b0d2616e98820eca31d4c3abcd36672df6afce5cb6feb1d66087d",
+          "black-forest-labs/flux-kontext-max:2bb25ce6a287841e5e56d9550c52bd3e343694ff1764cd0209151db8c2b5767f",
           {
             input: {
-              image: previousImageUrl,
               prompt: attemptPrompt,
-              negative_prompt: "nsfw, nude, adult content, inappropriate, violent, scary, complex, detailed, shading, colors, gradient, realistic, photorealistic, 3d, shadows",
-              strength: 0.4, // Keep 60% of original image, modify 40%
+              input_image: previousImageUrl,
+              output_format: "png",
+              guidance_scale: 3.5,
               num_outputs: 1,
-              num_inference_steps: 30,
-              guidance_scale: 7.5,
-              scheduler: "K_EULER"
+              aspect_ratio: "1:1",
+              output_quality: 80,
+              prompt_strength: 0.8
             }
           }
         )
       } else {
-        // Use text2img for the first step
-        console.log('[Replicate] Using text2img for initial image')
+        // Use flux for the first step (text to image)
+        console.log('[Replicate] Using flux for initial image')
         generatePromise = replicate.run(
-          "stability-ai/stable-diffusion:ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",
+          "black-forest-labs/flux-schnell:bf53bdb9790f81490d01d741f3a8c8b593a34b06fcc19e7ba14e866e7a7c0153",
           {
             input: {
               prompt: attemptPrompt,
-              negative_prompt: "nsfw, nude, adult content, inappropriate, violent, scary, complex, detailed, shading, colors, gradient, realistic, photorealistic, 3d, shadows",
-              width: 768,
-              height: 768,
+              output_format: "png",
+              aspect_ratio: "1:1",
               num_outputs: 1,
-              num_inference_steps: 25,
-              guidance_scale: 7.5,
-              scheduler: "K_EULER"
+              output_quality: 80
             }
           }
         )
       }
     
       console.log(`[Replicate] Attempt ${attempt} - Waiting for image generation...`)
-      const output = await Promise.race([generatePromise, timeoutPromise])
+      const output = await Promise.race([generatePromise, timeoutPromise]) as any
       
       console.log('[Replicate] Generation completed in', Date.now() - startTime, 'ms')
-      console.log('[Replicate] Output type:', typeof output, 'isArray:', Array.isArray(output))
+      console.log('[Replicate] Output type:', typeof output)
       
-      if (Array.isArray(output) && output.length > 0) {
-        console.log('[Replicate] Success! Returning first image URL:', output[0])
-        return output[0]
+      // Handle different output formats from flux models
+      let imageUrl: string | null = null
+      
+      if (output && typeof output === 'object' && 'url' in output) {
+        // flux-kontext-max returns an object with url() method
+        imageUrl = typeof output.url === 'function' ? output.url() : output.url
+      } else if (Array.isArray(output) && output.length > 0) {
+        imageUrl = output[0]
       } else if (typeof output === 'string') {
-        console.log('[Replicate] Success! Returning string URL:', output)
-        return output
+        imageUrl = output
+      }
+      
+      if (imageUrl) {
+        console.log('[Replicate] Success! Returning image URL:', imageUrl)
+        return imageUrl
       } else {
-        console.error('[Replicate] Unexpected output:', output)
+        console.error('[Replicate] Unexpected output format:', output)
         throw new Error('Unexpected output format from Replicate')
       }
     } catch (error: any) {
       console.error(`[Replicate] Attempt ${attempt} failed:`, error?.message || error)
       
-      // If NSFW error and not last attempt, retry
-      if (error?.message?.includes('NSFW') && attempt < 3) {
-        console.log(`[Replicate] NSFW detected, retrying with safer prompt (attempt ${attempt + 1}/3)...`)
+      // Retry on any error if not last attempt
+      if (attempt < 3) {
+        console.log(`[Replicate] Error occurred, retrying (attempt ${attempt + 1}/3)...`)
         continue
       }
       

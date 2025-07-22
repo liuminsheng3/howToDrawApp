@@ -62,14 +62,17 @@ export function buildCumulativePrompt(steps: Step[], currentIndex: number, isImg
   
   if (currentIndex === 0) {
     // 第一步：只有基础形状
-    prompt = `Simple line drawing tutorial step 1: ${drawnElements[0] || 'basic shape'}`
+    prompt = `Simple line drawing tutorial step 1: Draw ${drawnElements[0] || 'basic shape'} only`
   } else if (isImg2Img) {
-    // img2img模式：强调要添加的新元素
+    // flux-kontext-max模式：明确指示添加新元素
     const currentStepElement = drawnElements[drawnElements.length - 1]
-    prompt = `Add ${currentStepElement} to the existing drawing, keep all previous elements intact, simple line art style`
+    const currentStepText = steps[currentIndex].text
+    
+    // 更详细的指令，确保模型理解要做什么
+    prompt = `Drawing tutorial step ${currentIndex + 1}: Take the existing drawing and add ${currentStepElement}. ${currentStepText}. Keep all previous elements visible and intact`
   } else {
     // 常规模式：描述完整的图像
-    prompt = `Simple line drawing tutorial step ${currentIndex + 1}: ${topic} with `
+    prompt = `Simple line drawing tutorial step ${currentIndex + 1}: Complete drawing showing ${topic} with `
     
     // 智能组合元素
     if (drawnElements.length === 1) {
@@ -85,10 +88,10 @@ export function buildCumulativePrompt(steps: Step[], currentIndex: number, isImg
   
   // 添加统一的风格描述
   if (!isImg2Img || currentIndex === 0) {
-    prompt += '. Clean minimalist style, black line art only, white background, no shading, simple and clear for beginners'
+    prompt += '. Minimalist black line drawing on white background, no colors, no shading, simple style suitable for beginners to follow'
   } else {
-    // img2img模式：保持原有风格
-    prompt += ', maintain the same clean line art style as the base image'
+    // flux-kontext-max模式：强调延续性
+    prompt += '. Continue the same minimalist black line art style, maintaining consistency with the input image'
   }
   
   // 强调当前步骤的新增内容（仅在非img2img模式）
