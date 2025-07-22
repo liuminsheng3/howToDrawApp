@@ -4,11 +4,11 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN!,
 })
 
-export async function generateImage(prompt: string): Promise<string> {
-  // Add safety prefix to avoid NSFW false positives
-  const safePrompt = `Safe for work, educational drawing tutorial: ${prompt}. Simple line art style, appropriate for all ages.`
+export async function generateImage(prompt: string, previousImageUrl?: string): Promise<string> {
+  // Optimize prompt for better tutorial images
+  const optimizedPrompt = `${prompt}, clean minimalist style, black line art on pure white background, no shading, no colors, simple and clear for beginners to follow, educational drawing tutorial`
   
-  console.log('[Replicate] Starting image generation with prompt:', safePrompt.substring(0, 50) + '...')
+  console.log('[Replicate] Starting image generation with prompt:', optimizedPrompt.substring(0, 50) + '...')
   const startTime = Date.now()
   
   // Try up to 3 times if NSFW error occurs
@@ -21,24 +21,48 @@ export async function generateImage(prompt: string): Promise<string> {
       
       // Modify prompt on retry to avoid NSFW detection
       const attemptPrompt = attempt > 1 
-        ? `Educational children's drawing guide: ${prompt}. Clean, simple illustration.`
-        : safePrompt
+        ? `Children's educational drawing tutorial: ${prompt.replace('Add', 'Gently add').replace('existing', 'current')}, simple black lines only, white background, family-friendly`
+        : optimizedPrompt
       
-      const generatePromise = replicate.run(
-        "stability-ai/stable-diffusion:ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",
-        {
-          input: {
-            prompt: attemptPrompt,
-            negative_prompt: "nsfw, nude, adult content, inappropriate, violent, scary",
-            width: 768,
-            height: 768,
-            num_outputs: 1,
-            num_inference_steps: 50,
-            guidance_scale: 7.5,
-            scheduler: "K_EULER"
+      let generatePromise
+      
+      if (previousImageUrl) {
+        // Use img2img for subsequent steps
+        console.log('[Replicate] Using img2img with previous image:', previousImageUrl.substring(0, 50) + '...')
+        generatePromise = replicate.run(
+          "stability-ai/stable-diffusion-img2img:15a3689ee13b0d2616e98820eca31d4c3abcd36672df6afce5cb6feb1d66087d",
+          {
+            input: {
+              image: previousImageUrl,
+              prompt: attemptPrompt,
+              negative_prompt: "nsfw, nude, adult content, inappropriate, violent, scary, complex, detailed, shading, colors, gradient, realistic, photorealistic, 3d, shadows",
+              strength: 0.4, // Keep 60% of original image, modify 40%
+              num_outputs: 1,
+              num_inference_steps: 30,
+              guidance_scale: 7.5,
+              scheduler: "K_EULER"
+            }
           }
-        }
-      )
+        )
+      } else {
+        // Use text2img for the first step
+        console.log('[Replicate] Using text2img for initial image')
+        generatePromise = replicate.run(
+          "stability-ai/stable-diffusion:ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",
+          {
+            input: {
+              prompt: attemptPrompt,
+              negative_prompt: "nsfw, nude, adult content, inappropriate, violent, scary, complex, detailed, shading, colors, gradient, realistic, photorealistic, 3d, shadows",
+              width: 768,
+              height: 768,
+              num_outputs: 1,
+              num_inference_steps: 25,
+              guidance_scale: 7.5,
+              scheduler: "K_EULER"
+            }
+          }
+        )
+      }
     
       console.log(`[Replicate] Attempt ${attempt} - Waiting for image generation...`)
       const output = await Promise.race([generatePromise, timeoutPromise])

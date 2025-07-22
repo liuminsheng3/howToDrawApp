@@ -11,25 +11,37 @@ Generate a step-by-step tutorial in JSON format with exactly this structure:
     {
       "step_number": 1,
       "text": "Step instruction text",
-      "image_prompt": "Simple black and white line drawing showing [specific instruction], minimal style, on white background"
+      "image_prompt": "Simple line drawing tutorial step 1: [describe what to draw], minimal black lines on white background",
+      "cumulative_prompt": "Simple line drawing showing [complete description of what should be visible at this step]"
     }
   ],
   "outro": "A short conclusion (1-2 sentences)"
 }
 
 Rules:
-- Generate between 3-15 steps based on complexity:
-  - Simple objects (ball, star): 3-5 steps
-  - Medium complexity (animals, simple buildings): 6-10 steps
-  - Complex subjects (detailed scenes, characters): 10-15 steps
-- NEVER exceed 15 steps
-- Each step should be simple and build on the previous
-- Start with basic shapes, end with details
-- Keep text concise and clear
-- Image prompts must specify "simple black and white line drawing" and "white background"
-- IMPORTANT: Keep all prompts family-friendly and educational
-- Add "educational tutorial" or "children's drawing guide" to image prompts
-- Avoid any terms that might trigger content filters`
+- Generate 8-10 steps for all topics
+- Each step MUST build upon the previous one
+- Structure the tutorial like this:
+  - Step 1-2: Basic shapes/framework (circles, ovals, guidelines)
+  - Step 3-5: Main body parts/structure
+  - Step 6-8: Important details (eyes, nose, mouth, etc.)
+  - Step 9-10: Final details and cleanup
+- For the image_prompt: describe ONLY what's NEW in this step
+- For the cumulative_prompt: describe EVERYTHING drawn so far (accumulative)
+- Keep descriptions simple and specific
+- Example for cat:
+  - Step 1: "Draw a large circle for the head"
+    - image_prompt: "Simple line drawing tutorial step 1: one large circle, minimal black lines on white background"
+    - cumulative_prompt: "Simple line drawing showing one large circle"
+  - Step 2: "Add two small triangles on top for ears"
+    - image_prompt: "Simple line drawing tutorial step 2: large circle with two triangular ears on top, minimal black lines on white background"
+    - cumulative_prompt: "Simple line drawing showing a circle with two triangular ears"
+  - Step 3: "Draw two dots for eyes"
+    - image_prompt: "Simple line drawing tutorial step 3: cat head circle with triangular ears and two dot eyes, minimal black lines on white background"
+    - cumulative_prompt: "Simple line drawing showing a circle with triangular ears and two dot eyes"
+- IMPORTANT: Each cumulative_prompt includes ALL previous elements
+- Use simple, clean, minimalist style suitable for beginners
+- Avoid complex details or shading`
 
   const requestBody = {
     model: 'openai/gpt-4o',

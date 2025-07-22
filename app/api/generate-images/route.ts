@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateImage } from '@/lib/replicate'
 import { downloadAndStoreImage } from '@/lib/imageStorage'
 import { createServerSupabase } from '@/lib/supabase'
+import { buildCumulativePrompt, optimizePromptForTopic } from '@/lib/promptBuilder'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,6 +16,11 @@ export async function POST(request: NextRequest) {
     
     const supabase = createServerSupabase()
     let completedImageSteps = 0 // Count of completed image generation steps
+    let previousImageUrl: string | null = null // Track previous image for img2img
+    
+    // Extract topic from first step or tutorial data
+    const topicMatch = steps[0]?.text?.match(/draw (?:a |an )?(.+?)(?:\.|$)/i)
+    const topic = topicMatch ? topicMatch[1] : 'drawing'
     
     // Generate images for each step sequentially
     for (let i = 0; i < steps.length; i++) {
@@ -37,7 +43,19 @@ export async function POST(request: NextRequest) {
       
       try {
         console.log(`[Generate Images API] Generating image for step ${step.step_number}...`)
-        const tempImageUrl = await generateImage(step.image_prompt)
+        console.log(`[Generate Images API] Step ${step.step_number} text:`, step.text)
+        
+        // Build cumulative prompt using smart builder
+        const isImg2Img = i > 0 && previousImageUrl !== null
+        let cumulativePrompt = buildCumulativePrompt(steps, i, isImg2Img)
+        
+        // Optimize for specific topic
+        cumulativePrompt = optimizePromptForTopic(cumulativePrompt, topic)
+        
+        console.log(`[Generate Images API] Step ${step.step_number} cumulative prompt:`, cumulativePrompt)
+        
+        // Pass previous image URL for img2img (except for first step)
+        const tempImageUrl = await generateImage(cumulativePrompt, previousImageUrl || undefined)
         console.log(`[Generate Images API] Image generated:`, tempImageUrl)
         
         // Download and store the image
@@ -47,17 +65,20 @@ export async function POST(request: NextRequest) {
           step.step_number
         )
         
-        // Insert step into database
+        // Insert step into database with cumulative prompt
         await supabase
           .from('tutorial_steps')
           .insert({
             tutorial_id: tutorialId,
             step_number: step.step_number,
             text: step.text,
-            image_prompt: step.image_prompt,
+            image_prompt: cumulativePrompt, // Save the actual prompt used
             image_url: tempImageUrl,
             stored_image_url: storedImageUrl || tempImageUrl
           })
+        
+        // Update previous image URL for next iteration
+        previousImageUrl = storedImageUrl || tempImageUrl
         
         completedImageSteps++
         console.log(`[Generate Images API] Step ${step.step_number} completed, total completed: ${completedImageSteps}`)
@@ -81,15 +102,46 @@ export async function POST(request: NextRequest) {
     
     // Update tutorial status to ready
     console.log('[Generate Images API] All steps completed, updating status...')
-    await supabase
+    console.log('[Generate Images API] Setting completed_steps to:', completedImageSteps + 2)
+    console.log('[Generate Images API] Total steps:', steps.length)
+    
+    // Try to update with progress columns first
+    let updateError
+    let updateData: any = {
+      status: 'ready'
+    }
+    
+    // Try with progress tracking columns
+    const fullUpdateData = {
+      ...updateData,
+      current_step: 'finalize',
+      completed_steps: completedImageSteps + 2,
+      total_steps: steps.length
+    }
+    
+    const { error: fullError } = await supabase
       .from('tutorials')
-      .update({ 
-        status: 'ready',
-        current_step: 'finalize',
-        completed_steps: completedImageSteps + 2, // +1 for AI generation, +1 for finalize
-        total_steps: steps.length
-      })
+      .update(fullUpdateData)
       .eq('id', tutorialId)
+    
+    if (fullError && fullError.message?.includes('column')) {
+      // Fallback: try without progress columns
+      console.log('[Generate Images API] Retrying without progress columns...')
+      const { error: basicError } = await supabase
+        .from('tutorials')
+        .update(updateData)
+        .eq('id', tutorialId)
+      updateError = basicError
+    } else {
+      updateError = fullError
+    }
+    
+    if (updateError) {
+      console.error('[Generate Images API] Failed to update tutorial status:', updateError)
+      throw updateError
+    }
+    
+    console.log('[Generate Images API] Status updated successfully')
     
     return NextResponse.json({ 
       success: true,
