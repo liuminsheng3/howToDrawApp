@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateImage } from '@/lib/replicate'
+import { generateImageV2 } from '@/lib/replicateV2'
 import { downloadAndStoreImage } from '@/lib/imageStorage'
 import { createServerSupabase } from '@/lib/supabase'
 import { buildCumulativePrompt, optimizePromptForTopic } from '@/lib/promptBuilder'
@@ -55,7 +56,11 @@ export async function POST(request: NextRequest) {
         console.log(`[Generate Images API] Step ${step.step_number} cumulative prompt:`, cumulativePrompt)
         
         // Pass previous image URL for img2img (except for first step)
-        const tempImageUrl = await generateImage(cumulativePrompt, previousImageUrl || undefined)
+        // Use V2 for now to debug
+        const useV2 = true
+        const tempImageUrl = useV2 
+          ? await generateImageV2(cumulativePrompt, previousImageUrl || undefined)
+          : await generateImage(cumulativePrompt, previousImageUrl || undefined)
         console.log(`[Generate Images API] Image generated:`, tempImageUrl)
         
         // Download and store the image

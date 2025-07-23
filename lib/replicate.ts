@@ -66,15 +66,47 @@ export async function generateImage(prompt: string, previousImageUrl?: string): 
       
       console.log('[Replicate] Generation completed in', Date.now() - startTime, 'ms')
       console.log('[Replicate] Output type:', typeof output)
+      console.log('[Replicate] Output constructor:', output?.constructor?.name)
       
       // Handle different output formats from flux models
       let imageUrl: string | null = null
       
-      if (output && typeof output === 'object' && 'url' in output) {
+      // Check if it's a ReadableStream (Flux models may return this)
+      if (output instanceof ReadableStream) {
+        console.log('[Replicate] Got ReadableStream, converting to URL...')
+        
+        // Read the stream
+        const reader = output.getReader()
+        const chunks: Uint8Array[] = []
+        
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            chunks.push(value)
+          }
+          
+          // Convert to blob and create object URL
+          const blob = new Blob(chunks, { type: 'image/png' })
+          // Note: This creates a local blob URL, which won't work across different requests
+          // We need to handle this differently
+          console.error('[Replicate] ReadableStream output needs different handling')
+          throw new Error('Flux model returned ReadableStream - need to implement proper handling')
+          
+        } finally {
+          reader.releaseLock()
+        }
+      } else if (output && typeof output === 'object' && 'url' in output) {
         // flux-kontext-max returns an object with url() method
         imageUrl = typeof output.url === 'function' ? output.url() : output.url
       } else if (Array.isArray(output) && output.length > 0) {
-        imageUrl = output[0]
+        // Some models return array of URLs
+        const firstItem = output[0]
+        if (typeof firstItem === 'string') {
+          imageUrl = firstItem
+        } else if (firstItem && typeof firstItem === 'object' && 'url' in firstItem) {
+          imageUrl = typeof firstItem.url === 'function' ? firstItem.url() : firstItem.url
+        }
       } else if (typeof output === 'string') {
         imageUrl = output
       }
@@ -84,6 +116,7 @@ export async function generateImage(prompt: string, previousImageUrl?: string): 
         return imageUrl
       } else {
         console.error('[Replicate] Unexpected output format:', output)
+        console.error('[Replicate] Output keys:', output && typeof output === 'object' ? Object.keys(output) : 'N/A')
         throw new Error('Unexpected output format from Replicate')
       }
     } catch (error: any) {
