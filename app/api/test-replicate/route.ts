@@ -22,14 +22,14 @@ export async function GET(request: NextRequest) {
     // Test 1: flux-schnell (text to image)
     console.log('[Test] Running flux-schnell test...')
     const output1 = await replicate.run(
-      "black-forest-labs/flux-schnell:bf53bdb9790f81490d01d741f3a8c8b593a34b06fcc19e7ba14e866e7a7c0153",
+      "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
       {
         input: {
           prompt: "Simple line drawing of a circle, black lines on white background",
-          output_format: "png",
-          aspect_ratio: "1:1",
-          num_outputs: 1,
-          output_quality: 80
+          negative_prompt: "complex, detailed, shading, colors",
+          width: 768,
+          height: 768,
+          num_outputs: 1
         }
       }
     )
@@ -77,17 +77,14 @@ export async function GET(request: NextRequest) {
       try {
         console.log('[Test] Running flux-kontext-max test with base image...')
         const output2 = await replicate.run(
-          "black-forest-labs/flux-kontext-max:2bb25ce6a287841e5e56d9550c52bd3e343694ff1764cd0209151db8c2b5767f",
+          "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
           {
             input: {
-              prompt: "Add two triangle ears on top",
-              input_image: imageUrl1,
-              output_format: "png",
-              guidance_scale: 3.5,
-              num_outputs: 1,
-              aspect_ratio: "1:1",
-              output_quality: 80,
-              prompt_strength: 0.8
+              prompt: "Add two triangle ears on top of the circle",
+              image: imageUrl1,
+              negative_prompt: "complex, detailed, shading, colors",
+              prompt_strength: 0.5,
+              num_outputs: 1
             }
           }
         )

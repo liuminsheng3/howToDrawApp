@@ -27,35 +27,36 @@ export async function generateImage(prompt: string, previousImageUrl?: string): 
       let generatePromise
       
       if (previousImageUrl) {
-        // Use flux-kontext-max with previous image
-        console.log('[Replicate] Using flux-kontext-max with previous image:', previousImageUrl.substring(0, 50) + '...')
+        // Use stable-diffusion img2img
+        console.log('[Replicate] Using stable-diffusion img2img with previous image:', previousImageUrl.substring(0, 50) + '...')
         generatePromise = replicate.run(
-          "black-forest-labs/flux-kontext-max:2bb25ce6a287841e5e56d9550c52bd3e343694ff1764cd0209151db8c2b5767f",
+          "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
           {
             input: {
+              image: previousImageUrl,
               prompt: attemptPrompt,
-              input_image: previousImageUrl,
-              output_format: "png",
-              guidance_scale: 3.5,
+              negative_prompt: "nsfw, nude, adult content, inappropriate, violent, scary, complex, detailed, shading, colors, gradient, realistic, photorealistic, 3d, shadows",
+              prompt_strength: 0.5, // Keep 50% of original, add 50% new
               num_outputs: 1,
-              aspect_ratio: "1:1",
-              output_quality: 80,
-              prompt_strength: 0.8
+              scheduler: "K_EULER"
             }
           }
         )
       } else {
-        // Use flux for the first step (text to image)
-        console.log('[Replicate] Using flux for initial image')
+        // Use stable-diffusion for the first step
+        console.log('[Replicate] Using stable-diffusion for initial image')
         generatePromise = replicate.run(
-          "black-forest-labs/flux-schnell:bf53bdb9790f81490d01d741f3a8c8b593a34b06fcc19e7ba14e866e7a7c0153",
+          "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
           {
             input: {
               prompt: attemptPrompt,
-              output_format: "png",
-              aspect_ratio: "1:1",
+              negative_prompt: "nsfw, nude, adult content, inappropriate, violent, scary, complex, detailed, shading, colors, gradient, realistic, photorealistic, 3d, shadows",
+              width: 768,
+              height: 768,
               num_outputs: 1,
-              output_quality: 80
+              num_inference_steps: 25,
+              guidance_scale: 7.5,
+              scheduler: "K_EULER"
             }
           }
         )

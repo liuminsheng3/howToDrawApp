@@ -20,37 +20,38 @@ export async function generateImageV2(prompt: string, previousImageUrl?: string)
     let output: any
     
     if (previousImageUrl) {
-      // Use flux-kontext-max for img2img
-      console.log('[Replicate V2] Using flux-kontext-max (img2img)...')
+      // Use stable-diffusion img2img
+      console.log('[Replicate V2] Using stable-diffusion (img2img)...')
       
       output = await replicate.run(
-        "black-forest-labs/flux-kontext-max:2bb25ce6a287841e5e56d9550c52bd3e343694ff1764cd0209151db8c2b5767f",
+        "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
         {
           input: {
+            image: previousImageUrl,
             prompt: optimizedPrompt,
-            input_image: previousImageUrl,
-            output_format: "png",
-            guidance_scale: 3.5,
+            negative_prompt: "nsfw, nude, adult content, inappropriate, violent, scary, complex, detailed, shading, colors, gradient, realistic, photorealistic, 3d, shadows",
+            prompt_strength: 0.5,
             num_outputs: 1,
-            aspect_ratio: "1:1",
-            output_quality: 80,
-            prompt_strength: 0.8
+            scheduler: "K_EULER"
           }
         }
       )
     } else {
-      // Use flux-schnell for text2img
-      console.log('[Replicate V2] Using flux-schnell (text2img)...')
+      // Use stable-diffusion for text2img
+      console.log('[Replicate V2] Using stable-diffusion (text2img)...')
       
       output = await replicate.run(
-        "black-forest-labs/flux-schnell:bf53bdb9790f81490d01d741f3a8c8b593a34b06fcc19e7ba14e866e7a7c0153",
+        "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
         {
           input: {
             prompt: optimizedPrompt,
-            output_format: "png",
-            aspect_ratio: "1:1",
+            negative_prompt: "nsfw, nude, adult content, inappropriate, violent, scary, complex, detailed, shading, colors, gradient, realistic, photorealistic, 3d, shadows",
+            width: 768,
+            height: 768,
             num_outputs: 1,
-            output_quality: 80
+            num_inference_steps: 25,
+            guidance_scale: 7.5,
+            scheduler: "K_EULER"
           }
         }
       )
