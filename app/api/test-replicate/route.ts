@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
   })
   
   try {
-    // Test 1: flux-schnell (text to image)
-    console.log('[Test] Running flux-schnell test...')
+    // Test 1: stable-diffusion (text to image)
+    console.log('[Test] Running stable-diffusion test...')
     const output1 = await replicate.run(
       "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
       {
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     const result: any = {
       success: true,
       test1: {
-        model: 'flux-schnell',
+        model: 'stable-diffusion',
         outputType: typeof output1,
         outputConstructor: output1?.constructor?.name,
         hasUrl: output1 && typeof output1 === 'object' && 'url' in output1,
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     // Test 2: flux-kontext-max (image to image) - only if we got an image
     if (imageUrl1) {
       try {
-        console.log('[Test] Running flux-kontext-max test with base image...')
+        console.log('[Test] Running stable-diffusion img2img test with base image...')
         const output2 = await replicate.run(
           "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
           {
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
         }
         
         result.test2 = {
-          model: 'flux-kontext-max',
+          model: 'stable-diffusion-img2img',
           baseImage: imageUrl1,
           outputType: typeof output2,
           outputConstructor: output2?.constructor?.name,
