@@ -106,7 +106,11 @@ export async function POST(request: NextRequest) {
     // Trigger separate API call for image generation
     const baseUrl = request.headers.get('host') || 'localhost:3000'
     const protocol = request.headers.get('x-forwarded-proto') || 'http'
-    const imageGenUrl = `${protocol}://${baseUrl}/api/generate-images`
+    // Use consistent generation for better results
+    const useConsistentGeneration = true
+    const imageGenUrl = useConsistentGeneration 
+      ? `${protocol}://${baseUrl}/api/generate-consistent`
+      : `${protocol}://${baseUrl}/api/generate-images`
     
     console.log('[Generate API] Triggering image generation at:', imageGenUrl)
     

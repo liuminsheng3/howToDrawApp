@@ -5,7 +5,7 @@ const replicate = new Replicate({
 })
 
 // 新版本：正确处理Flux模型输出
-export async function generateImageV2(prompt: string, previousImageUrl?: string): Promise<string> {
+export async function generateImageV2(prompt: string, previousImageUrl?: string, options?: { promptStrength?: number }): Promise<string> {
   const optimizedPrompt = `${prompt}, clean minimalist style, black line art on pure white background, no shading, no colors, simple and clear for beginners to follow, educational drawing tutorial`
   
   console.log('[Replicate V2] Starting image generation...')
@@ -30,7 +30,7 @@ export async function generateImageV2(prompt: string, previousImageUrl?: string)
             image: previousImageUrl,
             prompt: optimizedPrompt,
             negative_prompt: "nsfw, nude, adult content, inappropriate, violent, scary, complex, detailed, shading, colors, gradient, realistic, photorealistic, 3d, shadows",
-            prompt_strength: 0.5,
+            prompt_strength: options?.promptStrength || 0.5,
             num_outputs: 1,
             scheduler: "K_EULER"
           }
