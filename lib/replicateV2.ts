@@ -6,17 +6,31 @@ const replicate = new Replicate({
 
 // 新版本：正确处理Flux模型输出
 export async function generateImageV2(prompt: string, previousImageUrl?: string, options?: { promptStrength?: number }): Promise<string> {
-  const optimizedPrompt = `${prompt}, clean minimalist style, black line art on pure white background, no shading, no colors, simple and clear for beginners to follow, educational drawing tutorial`
+  // 添加最多3次重试以处理NSFW误报
+  const maxAttempts = 3
   
-  console.log('[Replicate V2] Starting image generation...')
-  console.log('[Replicate V2] Prompt:', optimizedPrompt.substring(0, 100) + '...')
-  if (previousImageUrl) {
-    console.log('[Replicate V2] Previous image:', previousImageUrl.substring(0, 50) + '...')
-  }
-  
-  const startTime = Date.now()
-  
-  try {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // 每次重试添加更安全的前缀
+    let attemptPrompt = prompt
+    if (attempt === 1) {
+      attemptPrompt = `Safe for work, educational drawing tutorial: ${prompt}`
+    } else if (attempt === 2) {
+      attemptPrompt = `Children's educational art lesson, simple line drawing: ${prompt}`
+    } else {
+      attemptPrompt = `G-rated, kindergarten-safe drawing tutorial, basic shapes only: ${prompt}`
+    }
+    
+    const optimizedPrompt = `${attemptPrompt}, clean minimalist style, black line art on pure white background, no shading, no colors, simple and clear for beginners to follow, educational drawing tutorial`
+    
+    console.log(`[Replicate V2] Attempt ${attempt}/${maxAttempts}...`)
+    console.log('[Replicate V2] Prompt:', optimizedPrompt.substring(0, 100) + '...')
+    if (previousImageUrl) {
+      console.log('[Replicate V2] Previous image:', previousImageUrl.substring(0, 50) + '...')
+    }
+    
+    const startTime = Date.now()
+    
+    try {
     let output: any
     
     if (previousImageUrl) {
@@ -90,9 +104,23 @@ export async function generateImageV2(prompt: string, previousImageUrl?: string,
     console.log('[Replicate V2] Success! Image URL:', imageUrl)
     return imageUrl
     
-  } catch (error: any) {
-    console.error('[Replicate V2] Error:', error?.message || error)
-    console.error('[Replicate V2] Error details:', error)
-    throw error
+    } catch (error: any) {
+      console.error(`[Replicate V2] Attempt ${attempt} failed:`, error?.message || error)
+      
+      // 检查是否是NSFW错误
+      if (error?.message?.includes('NSFW') && attempt < maxAttempts) {
+        console.log(`[Replicate V2] NSFW误报，尝试第 ${attempt + 1} 次...`)
+        // 等待一下再重试
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        continue
+      }
+      
+      // 如果不是NSFW错误或已经是最后一次尝试，抛出错误
+      console.error('[Replicate V2] Error details:', error)
+      throw error
+    }
   }
+  
+  // 如果所有尝试都失败了
+  throw new Error('Failed to generate image after all attempts')
 }
